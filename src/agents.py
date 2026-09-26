@@ -51,7 +51,7 @@ class BuilderAgent:
     def _create_prompt(self, issue: str) -> str:
         """Create prompt for LLM"""
         # Read current code
-        app_path = os.path.join(self.repo_path, "demo-target/app.py")
+        app_path = os.path.join(self.repo_path, "agentgate/demo-target/app.py")
         
         try:
             with open(app_path, "r") as f:
@@ -87,8 +87,8 @@ Respond with Python code only, no explanation.
     
     def _apply_code(self, code: str):
         """Start from the clean seed, then append the generated refund code."""
-        seed_path = os.path.join(self.repo_path, "demo-target/seed_app.py")
-        app_path = os.path.join(self.repo_path, "demo-target/app.py")
+        seed_path = os.path.join(self.repo_path, "agentgate/demo-target/seed_app.py")
+        app_path = os.path.join(self.repo_path, "agentgate/demo-target/app.py")
         with open(seed_path, "r") as f:
             base = f.read()
         with open(app_path, "w") as f:
@@ -101,7 +101,7 @@ Respond with Python code only, no explanation.
     def _commit_and_push(self, branch: str, message: str):
         """Commit and push changes"""
         subprocess.run(
-            ["git", "add", "demo-target/app.py"],
+            ["git", "add", "agentgate/demo-target/app.py"],
             cwd=self.repo_path,
             capture_output=True
         )
@@ -156,12 +156,18 @@ class FixerAgent:
     def _fix_with_coding_agent(self, github, pr_number: int, findings_count: int) -> Dict[str, Any]:
         """Ask the CodeRabbit Coding Agent to autofix this pull request."""
         before = set(github.list_commit_shas(pr_number))
-        github.add_comment(
+        posted = github.add_comment(
             pr_number,
             "@coderabbitai autofix\n\n"
             "Please fix every open CodeRabbit finding on this pull request, "
             "especially the missing refund authorization check."
         )
+        if posted is False:
+            return {
+                "success": False,
+                "message": "Could not ask the Coding Agent to autofix (GitHub comment was forbidden)",
+                "agent": "coderabbit-coding-agent",
+            }
         print(f"[Fixer] Posted @coderabbitai autofix on PR #{pr_number}")
 
         deadline = time.time() + 180
@@ -190,7 +196,7 @@ class FixerAgent:
             for f in findings
         ])
         
-        app_path = os.path.join(self.repo_path, "demo-target/app.py")
+        app_path = os.path.join(self.repo_path, "agentgate/demo-target/app.py")
         try:
             with open(app_path, "r") as f:
                 current_code = f.read()
@@ -218,7 +224,7 @@ Respond with Python code only, no explanation.
     
     def _apply_fix(self, code: str):
         """Apply fixed code"""
-        app_path = os.path.join(self.repo_path, "demo-target/app.py")
+        app_path = os.path.join(self.repo_path, "agentgate/demo-target/app.py")
         
         with open(app_path, "w") as f:
             f.write(code)
@@ -228,7 +234,7 @@ Respond with Python code only, no explanation.
     def _commit_and_push(self, branch: str, message: str):
         """Commit and push changes"""
         subprocess.run(
-            ["git", "add", "demo-target/app.py"],
+            ["git", "add", "agentgate/demo-target/app.py"],
             cwd=self.repo_path,
             capture_output=True
         )

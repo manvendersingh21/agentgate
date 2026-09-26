@@ -318,10 +318,19 @@
             }
             if (event.type === 'builder_complete') {
                 rows.push({ title: 'Builder', status: 'success', html: '✅ Complete' });
+            } else if (event.type === 'loop_failed') {
+                rows.push({
+                    title: 'Loop',
+                    status: 'error',
+                    html: `⚠️ ${event.data.error || 'Demo failed'}`
+                });
+                document.getElementById('startButton').disabled = false;
+                document.getElementById('startButton').textContent = 'Start Demo';
             } else if (event.type === 'review_complete') {
+                const findings = event.data.findings || [];
                 rows.push({
                     title: 'CodeRabbit',
-                    status: event.data.critical_count > 0 ? 'error' : 'success',
+                    status: findings.length ? 'error' : 'success',
                     html: reviewHtml(event.data)
                 });
             } else if (event.type === 'decision_complete') {
@@ -332,12 +341,14 @@
                 });
             } else if (event.type === 'fix_complete') {
                 const live = event.data.agent === 'coderabbit-coding-agent';
+                const ok = event.data.success !== false;
+                const detail = event.data.message || (ok ? 'Fix applied' : 'Fix failed');
                 rows.push({
                     title: live ? 'CodeRabbit Coding Agent' : 'Fixer',
-                    status: event.data.success === false ? 'error' : 'success',
+                    status: ok ? 'success' : 'error',
                     html: live
-                        ? '✅ @coderabbitai autofix pushed a commit'
-                        : '✅ Offline stand-in applied the recorded fix. Live mode posts @coderabbitai autofix.'
+                        ? `${ok ? '✅' : '⚠️'} ${detail}`
+                        : `${ok ? '✅' : '⚠️'} ${detail}. Offline stand-in. Live mode posts @coderabbitai autofix.`
                 });
             } else if (event.type === 'merge_complete') {
                 rows.push({ title: 'Merge', status: 'success', html: '✅ PR MERGED' });
@@ -349,11 +360,14 @@
         }
 
         function reviewHtml(data) {
-            const critical = data.critical_count || 0;
-            if (!critical) return '<span class="metric success">🟢 Clean</span>';
-            const finding = (data.findings || []).find(f => f.severity === 'critical');
-            const text = finding ? `<div class="finding"><span class="finding-severity severity-critical">CRITICAL</span> ${finding.message}</div>` : '';
-            return `<span class="metric critical">🔴 ${critical} Critical Issue</span>${text}`;
+            const findings = data.findings || [];
+            const blocking = findings.filter(f => f.severity === 'critical' || f.severity === 'security');
+            if (!findings.length) return '<span class="metric success">🟢 Clean</span>';
+            const shown = blocking[0] || findings[0];
+            const label = (shown.severity || 'finding').toUpperCase();
+            const text = `<div class="finding"><span class="finding-severity severity-critical">${label}</span> ${shown.message}</div>`;
+            const count = blocking.length || findings.length;
+            return `<span class="metric critical">🔴 ${count} blocking</span>${text}`;
         }
 
         function decisionHtml(data) {

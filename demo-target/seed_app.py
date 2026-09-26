@@ -41,7 +41,7 @@ def create_order(order: Order):
     order_id = str(uuid.uuid4())
     order.id = order_id
     order.created_at = datetime.now(timezone.utc).isoformat()
-    orders_db[order_id] = order.dict()
+    orders_db[order_id] = order.model_dump()
     return orders_db[order_id]
 
 
@@ -64,7 +64,7 @@ def create_payment(payment: Payment):
     payment_id = str(uuid.uuid4())
     payment.id = payment_id
     payment.created_at = datetime.now(timezone.utc).isoformat()
-    payments_db[payment_id] = payment.dict()
+    payments_db[payment_id] = payment.model_dump()
     
     # Update order status
     orders_db[payment.order_id]["status"] = "paid"

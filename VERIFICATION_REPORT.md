@@ -1,12 +1,8 @@
 # AgentGate Verification Report
 
-This file records checks run while AgentGate lived inside PR-slayer. Commands below are for this standalone repository.
-
 **Date**: September 26, 2026  
 **PR**: https://github.com/manvendersingh21/PR-slayer/pull/1  
 **Branch**: cursor/agentgate-hackathon-5bf2  
-
-These checks were recorded while AgentGate lived inside PR-slayer. Run the commands in the last section from this repository root.
 
 ## ✅ All Gaps Fixed - Ready for Demo
 
@@ -228,12 +224,14 @@ python3 -m pytest -v
 
 ### Quick Terminal Demo (Recommended)
 ```bash
+cd agentgate
 python3 scripts/simple_demo.py
 ```
-**Shows**: Real loop, FIX then MERGE
+**Shows**: Real loop, 5 seconds, FIX→MERGE
 
 ### Dashboard Demo
 ```bash
+cd agentgate
 make demo
 # Open http://localhost:8000
 # Click "Start Demo"
@@ -243,6 +241,7 @@ make demo
 ### Test Jev (if you have key)
 ```bash
 export JEV_API_KEY=jv_live_your_key
+cd agentgate
 make test-jev
 ```
 **Shows**: Raw response + parsed decision

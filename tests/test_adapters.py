@@ -165,3 +165,96 @@ def test_canned_llm_generates_refund_code():
     
     assert "refund" in code.lower()
     assert "@app.post" in code or "def create_refund" in code
+
+
+class _Resp:
+    def __init__(self, code, payload=None):
+        self.status_code = code
+        self.ok = code < 400
+        self._payload = payload if payload is not None else {}
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise AssertionError(f"unexpected HTTP {self.status_code}")
+
+
+def test_create_pr_reuses_open_pr_when_create_is_forbidden(monkeypatch):
+    """A 403 from the pulls API should use the open PR for that branch."""
+    from src.adapters import LiveGitHubAdapter
+
+    adapter = LiveGitHubAdapter("token", "manvendersingh21/PR-slayer")
+
+    def post(url, headers=None, json=None):
+        return _Resp(403, {"message": "forbidden"})
+
+    def get(url, headers=None, params=None):
+        assert params["head"] == "manvendersingh21:agentgate/add-refund-endpoint"
+        assert params["state"] == "open"
+        return _Resp(200, [{"number": 6}])
+
+    monkeypatch.setattr("src.adapters.requests.post", post)
+    monkeypatch.setattr("src.adapters.requests.get", get)
+    assert adapter.create_pr("agentgate/add-refund-endpoint", "feat", "body") == 6
+
+
+def test_add_comment_returns_false_on_403(monkeypatch):
+    """Commenting is forbidden for this token, and that must not raise."""
+    from src.adapters import LiveGitHubAdapter
+
+    adapter = LiveGitHubAdapter("token", "manvendersingh21/PR-slayer")
+    monkeypatch.setattr("src.adapters.requests.post", lambda *a, **k: _Resp(403))
+    assert adapter.add_comment(5, "@coderabbitai review") is False
+
+
+def test_request_review_survives_forbidden_comment():
+    class GitHub:
+        def add_comment(self, pr_number, comment):
+            return False
+
+    adapter = LiveCodeRabbitAdapter(github=GitHub(), repo="o/r", token="t")
+    adapter.request_review(5)
+
+
+def test_live_review_timeout_is_not_a_clean_review(monkeypatch):
+    """No CodeRabbit activity is an unreviewed pull request, not a clean one."""
+    adapter = LiveCodeRabbitAdapter(github=None, repo="o/r", token="t")
+    monkeypatch.setattr(adapter, "_parse_comments", lambda pr: [])
+    monkeypatch.setattr(adapter, "_review_posted", lambda pr: False)
+    monkeypatch.setattr("src.adapters.time.sleep", lambda _s: None)
+    clock = {"t": 0}
+
+    def fake_time():
+        clock["t"] += 301
+        return clock["t"]
+
+    monkeypatch.setattr("src.adapters.time.time", fake_time)
+    findings = adapter.get_review(5, timeout=300)
+    assert len(findings) == 1
+    assert findings[0].severity == Severity.SECURITY
+    assert "unreviewed" in findings[0].message
+
+
+def test_live_review_with_no_inline_comments_is_clean(monkeypatch):
+    """A finished CodeRabbit review with no inline comments is clean."""
+    adapter = LiveCodeRabbitAdapter(github=None, repo="o/r", token="t")
+    monkeypatch.setattr(adapter, "_parse_comments", lambda pr: [])
+    monkeypatch.setattr(adapter, "_review_posted", lambda pr: True)
+    assert adapter.get_review(5, timeout=300) == []
+
+
+def test_coding_agent_does_not_wait_when_comment_forbidden():
+    from src.agents import FixerAgent
+
+    class GitHub:
+        def list_commit_shas(self, pr_number):
+            return ["abc"]
+
+        def add_comment(self, pr_number, comment):
+            return False
+
+    result = FixerAgent(llm=None, repo_path=".")._fix_with_coding_agent(GitHub(), 5, 1)
+    assert result["success"] is False
+    assert "forbidden" in result["message"]

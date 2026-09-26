@@ -1,10 +1,10 @@
 """
 Main orchestrator for the AgentGate safety loop
 """
+import sys
 import time
 import subprocess
-import json
-from typing import Dict, Any, List
+from typing import Dict, Any
 from datetime import datetime, timezone
 
 from .models import PRState, Finding, Action, Event
@@ -73,17 +73,17 @@ class Orchestrator:
             # Get CodeRabbit review
             self._emit_event("review_start", pr_number, {"attempt": pr_state.attempt})
             
-            # Request review if not first attempt
-            if pr_state.attempt > 1:
-                self.coderabbit.request_review(pr_number)
-                time.sleep(3)  # Brief delay for re-review
+            # Ask CodeRabbit on every attempt, including the first.
+            self.coderabbit.request_review(pr_number)
+            time.sleep(3)
             
             findings = self.coderabbit.get_review(pr_number)
             pr_state.findings = findings
             
+            blocking = self._blocking_findings(findings)
             self._emit_event("review_complete", pr_number, {
                 "findings_count": len(findings),
-                "critical_count": sum(1 for f in findings if f.severity.value == "critical"),
+                "critical_count": len(blocking),
                 "findings": [self._finding_to_dict(f) for f in findings]
             })
             
@@ -91,7 +91,7 @@ class Orchestrator:
             self._emit_event("decision_start", pr_number, {"attempt": pr_state.attempt})
             
             jev_input = self._prepare_jev_input(pr_state)
-            decision = self.jev.decide(jev_input)
+            decision = self._apply_guardrails(self.jev.decide(jev_input), pr_state)
             pr_state.decision = decision
             
             answers = (decision.raw_response or {}).get("answers", {})
@@ -173,12 +173,32 @@ class Orchestrator:
             "reason": "max_attempts"
         }
     
+    def _apply_guardrails(self, decision, pr_state: PRState):
+        """Never merge while tests fail or a critical/security finding is open."""
+        tests_pass = (pr_state.test_results or {}).get("passed", False)
+        blocked = (not tests_pass) or bool(self._blocking_findings(pr_state.findings))
+        if decision.action != Action.MERGE or not blocked:
+            return decision
+        action = Action.FIX if pr_state.attempt < pr_state.max_attempts else Action.HUMAN_REVIEW
+        raw = dict(decision.raw_response or {})
+        raw["guardrail"] = "merge_blocked"
+        return type(decision)(
+            merge_safe=False,
+            confidence=decision.confidence,
+            risk=decision.risk,
+            action=action,
+            raw_response=raw,
+        )
+
+    def _blocking_findings(self, findings) -> list:
+        return [f for f in findings if f.severity.value in ("critical", "security")]
+
     def _run_tests(self) -> Dict[str, Any]:
         """Run tests on demo target"""
-        test_path = f"{self.repo_path}/demo-target"
+        test_path = f"{self.repo_path}/agentgate/demo-target"
         
         result = subprocess.run(
-            ["pytest", "test_app.py", "-v", "--tb=short"],
+            [sys.executable, "-m", "pytest", "test_app.py", "-v", "--tb=short"],
             cwd=test_path,
             capture_output=True,
             text=True

@@ -19,8 +19,17 @@ app = FastAPI()
 event_queue = Queue()
 
 # Current run state
+def _startup_mode() -> str:
+    """Match create_adapters before the loop runs, so the badge is right at page load."""
+    if os.getenv("GITHUB_TOKEN"):
+        return "live"
+    if os.getenv("JEV_API_KEY") or os.getenv("TYPESAFE_API_KEY"):
+        return "hybrid"
+    return "offline"
+
+
 current_state = {
-    "mode": "offline",
+    "mode": _startup_mode(),
     "pr_number": 0,
     "status": "idle",
     "events": []
@@ -113,7 +122,7 @@ def run_demo_loop():
     from src.orchestrator import Orchestrator
     
     # Create adapters
-    repo_path = os.getenv("REPO_PATH", str(Path(__file__).resolve().parents[1]))
+    repo_path = os.getenv("REPO_PATH", str(Path(__file__).resolve().parents[2]))
     adapters = create_adapters(repo_path)
     
     current_state["mode"] = adapters["mode"]
@@ -141,8 +150,21 @@ def run_demo_loop():
     issue = "Create a refund endpoint"
     branch = "agentgate/add-refund-endpoint"
     
-    result = orchestrator.run_loop(issue, branch)
-    
+    try:
+        result = orchestrator.run_loop(issue, branch)
+    except Exception as exc:
+        current_state["status"] = "failed"
+        current_state["result"] = {"success": False, "error": str(exc)}
+        failed = {
+            "type": "loop_failed",
+            "pr_number": current_state.get("pr_number", 0),
+            "data": {"error": str(exc)},
+            "timestamp": "",
+        }
+        event_queue.put(failed)
+        current_state["events"].append(failed)
+        return
+
     current_state["status"] = "complete" if result["success"] else "failed"
     current_state["result"] = result
 

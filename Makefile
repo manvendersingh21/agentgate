@@ -12,7 +12,7 @@ install:
 
 test:
 	@echo "🧪 Running tests..."
-	@pytest -q
+	@python3 -m pytest -q
 
 test-jev:
 	@echo "🔑 Testing Jev API connection..."

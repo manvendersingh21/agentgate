@@ -179,6 +179,50 @@ def test_orchestrator_max_attempts():
     assert fixer.fix.call_count == 2  # Called twice (attempts 1 and 2)
 
 
+def test_orchestrator_blocks_merge_when_tests_fail():
+    """A MERGE decision cannot ship while the demo tests are failing."""
+    orchestrator, builder, fixer, github, coderabbit, jev = create_mock_orchestrator()
+    builder.build.return_value = {"success": True, "pr_number": 123, "branch": "test-branch"}
+    orchestrator._run_tests = Mock(return_value={"passed": False, "exit_code": 1, "output": "fail"})
+    coderabbit.get_review.return_value = []
+    jev.decide.return_value = JevDecision(
+        merge_safe=True, confidence=90.0, risk=1.0, action=Action.MERGE
+    )
+    fixer.fix.return_value = {"success": True}
+    github.get_pr_diff.return_value = "diff"
+
+    result = orchestrator.run_loop("test issue", "test-branch")
+
+    github.merge_pr.assert_not_called()
+    assert fixer.fix.call_count == 2
+    assert result["success"] is False
+    assert result["reason"] == "human_review_required"
+
+
+def test_orchestrator_blocks_merge_when_security_finding_open():
+    """A MERGE decision cannot ship while a security finding is open."""
+    orchestrator, builder, fixer, github, coderabbit, jev = create_mock_orchestrator()
+    builder.build.return_value = {"success": True, "pr_number": 123, "branch": "test-branch"}
+    orchestrator._run_tests = Mock(return_value={"passed": True, "exit_code": 0, "output": "ok"})
+    coderabbit.get_review.return_value = [Finding(
+        severity=Severity.SECURITY,
+        category="security",
+        file="app.py",
+        line=10,
+        message="Refund amount is not checked",
+    )]
+    jev.decide.return_value = JevDecision(
+        merge_safe=True, confidence=90.0, risk=2.0, action=Action.MERGE
+    )
+    fixer.fix.return_value = {"success": True}
+    github.get_pr_diff.return_value = "diff"
+
+    result = orchestrator.run_loop("test issue", "test-branch")
+
+    github.merge_pr.assert_not_called()
+    assert result["reason"] == "human_review_required"
+
+
 def test_orchestrator_build_failure():
     """Test build failure"""
     orchestrator, builder, fixer, github, coderabbit, jev = create_mock_orchestrator()

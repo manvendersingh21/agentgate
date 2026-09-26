@@ -16,13 +16,12 @@ Modern AI coding agents are fast but risky. They can generate entire features in
 
 The result: **autonomous code generation with production-grade safety**.
 
-This directory is the project root. It was extracted from [PR-slayer](https://github.com/manvendersingh21/PR-slayer) so it can live in its own repository. Remaining hackathon work is listed in `HACKATHON_GAPS.md`.
-
 ## Quick Start
 
 **Terminal Demo (Fastest for hackathon):**
 
 ```bash
+cd agentgate
 python3 scripts/simple_demo.py
 ```
 
@@ -31,6 +30,7 @@ Shows the complete safety loop with visual output in 10 seconds.
 **Dashboard Demo (Interactive):**
 
 ```bash
+cd agentgate
 make demo
 ```
 
@@ -38,14 +38,10 @@ Open http://localhost:8000 and click "Start Demo"
 
 Both demos run offline with no API keys needed.
 
-![Jev blocks the buggy refund](demo-artifacts/dashboard-fix.png)
-
-![Jev approves the repaired refund](demo-artifacts/dashboard-merge.png)
-
 ## 2-Minute Demo Script
 
 **Setup (30 seconds):**
-1. Open dashboard: `make demo`
+1. Open dashboard: `cd agentgate && make demo`
 2. Navigate to http://localhost:8000
 3. Explain the pitch: "AI agents are fast but risky. AgentGate adds a safety control plane."
 
@@ -218,7 +214,7 @@ After fixes:
 ## Project Structure
 
 ```
-./
+agentgate/
 ├── demo-target/           # Target API to modify
 │   ├── app.py            # FastAPI orders backend
 │   ├── test_app.py       # Tests (catch bugs after fixes)
@@ -309,7 +305,7 @@ MIT
 
 ## Credits
 
-Built for the [Hackathon Name] by [Your Name]
+Built for JEVATHON.
 
 - **Jev**: TypeSafe AI's decision API - https://thejevai.com
 - **CodeRabbit**: AI code reviewer - https://coderabbit.ai

@@ -100,7 +100,7 @@ Recorded captures already in `scripts/jev_smoke.py` (these are the user's real r
 
 Mapping: `score / (levels - 1) * 10`, one decimal. Confidence is the **action** confidence times 100, not the noul. Stub raw payload must keep `"source": "stub (from recorded Jev response)"`. On network or parse failure, live Jev falls back to the stub and must print `Jev unavailable`.
 
-Guardrails, already in the orchestrator: never merge while tests fail or a critical/security finding is open. Cap the loop at 3 attempts, then `human_review`.
+Guardrails are in the orchestrator: never merge while tests fail or a critical/security finding is open, even if Jev returns merge. Cap the loop at 3 attempts, then `human_review`.
 
 ## P1 — judge-facing product gaps
 

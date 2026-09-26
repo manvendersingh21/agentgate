@@ -46,16 +46,16 @@
 
 2. **Run terminal demo** (10 sec)
    ```bash
-   python3 scripts/simple_demo.py
+   cd agentgate && python3 scripts/simple_demo.py
    ```
 
 3. **Explain the flow** (60 sec)
    - Builder creates buggy refund endpoint
    - CodeRabbit catches missing auth check (🔴 Critical)
-   - Jev blocks merge (Risk 9.9/10)
+   - Jev blocks merge (Risk 9.2/10)
    - Fixer repairs automatically
    - CodeRabbit re-reviews (🟢 Clean)
-   - Jev approves (Risk 2.7/10)
+   - Jev approves (Risk 1.1/10)
    - Merges safely!
 
 4. **Show the code** (30 sec)
@@ -67,18 +67,18 @@
 
 ```bash
 # Terminal demo (10 sec)
-python3 scripts/simple_demo.py
+cd agentgate && python3 scripts/simple_demo.py
 
 # Run tests
-make test
+cd agentgate && make test
 
 # Dashboard demo
-make demo
+cd agentgate && make demo
 # Open http://localhost:8000
 
 # Test Jev API (if you have a key)
 export JEV_API_KEY=jv_live_...
-make test-jev
+cd agentgate && make test-jev
 ```
 
 ## 📊 Key Metrics
@@ -110,7 +110,7 @@ make test-jev
 ## 🔧 If Something Goes Wrong
 
 - **Demo won't run**: Use `python3 scripts/simple_demo.py` (always works)
-- **Missing deps**: `make install`
+- **Missing deps**: `cd agentgate && make install`
 - **Dashboard issues**: Terminal demo is faster anyway
 - **Tests fail**: They passed in CI, probably a path issue
 
@@ -119,7 +119,7 @@ make test-jev
 1. Install CodeRabbit GitHub App: https://github.com/apps/coderabbitai
 2. Get Jev API key: https://thejevai.com
 3. Set env vars in `.env`
-4. Run: `make demo`
+4. Run: `cd agentgate && make demo`
 
 ## 🎉 Success Criteria
 

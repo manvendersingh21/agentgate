@@ -12,7 +12,7 @@ from src.orchestrator import Orchestrator
 
 
 def main():
-    repo = os.getenv("REPO_PATH", str(Path(__file__).resolve().parents[1]))
+    repo = os.getenv("REPO_PATH", str(Path(__file__).resolve().parents[2]))
     os.environ.pop("GITHUB_TOKEN", None)
     os.environ.pop("JEV_API_KEY", None)
     os.environ.pop("TYPESAFE_API_KEY", None)
